@@ -7,13 +7,13 @@ import urllib.request
 api_data = {}
 
 req = urllib.request.urlopen('https://api.weather.gov/gridpoints/CTP/71,63/forecast')
+if req.status != 200:
+    print("weather.gov API currently unavailable.")
+    print(req.status)
+    print(req.reason)
+    exit()
 data = req.read()
-#print(data)
-#encoding = req.info().get_content_charset('utf-8')
-api_data = json.loads(data) #data.decode(encoding))
-
-print(api_data['properties']['updated'])
-
+api_data = json.loads(data)
 
 # with open('sample.json', encoding="utf-8") as f:
 #     raw_data = f.read();
@@ -40,10 +40,7 @@ for period in api_data['properties']['periods']:
             periods[period_date]['low_temp'] = match.group(1)
             periods[period_date]['night_forecast'] = period['shortForecast']
 
-# for k,v in periods.items():
-#     print(k, v['high_temp'], v['low_temp'])
-
-print(f"{'Date':<12} {'Day':<10} {'High Temp':<10} {'Low Temp':<10} {'Day Forecast':<20} {'Night Forecast':<20}")
-print("-" * 85)
+print(f"{'Date':<12} {'Day':<10} {'High Temp':<10} {'Low Temp':<10} {'Day Forecast':<40} {'Night Forecast':<40}")
+print("-" * 125)
 for k,v in periods.items():
-    print(f"{k:<12} {v['day_of_week']:<10} {v['high_temp'] if v['high_temp'] is not None else 'N/A':<10} {v['low_temp'] if v['low_temp'] is not None else 'N/A':<10} {v['day_forecast'] if v['day_forecast'] is not None else 'N/A':<20} {v['night_forecast'] if v['night_forecast'] is not None else 'N/A':<20}")
+    print(f"{k:<12} {v['day_of_week']:<10} {v['high_temp'] if v['high_temp'] is not None else 'N/A':<10} {v['low_temp'] if v['low_temp'] is not None else 'N/A':<10} {v['day_forecast'][0:40] if v['day_forecast'] is not None else 'N/A':<40} {v['night_forecast'][0:40] if v['night_forecast'] is not None else 'N/A':<40}")
