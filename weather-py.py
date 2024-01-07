@@ -41,6 +41,6 @@ for period in api_data['properties']['periods']:
             periods[period_date]['night_forecast'] = period['shortForecast']
 
 print(f"{'Date':<12} {'Day':<10} {'High Temp':<10} {'Low Temp':<10} {'Day Forecast':<40} {'Night Forecast':<40}")
-print("-" * 125)
+print("-" * (122 + 6))
 for k,v in periods.items():
     print(f"{k:<12} {v['day_of_week']:<10} {v['high_temp'] if v['high_temp'] is not None else 'N/A':<10} {v['low_temp'] if v['low_temp'] is not None else 'N/A':<10} {v['day_forecast'][0:40] if v['day_forecast'] is not None else 'N/A':<40} {v['night_forecast'][0:40] if v['night_forecast'] is not None else 'N/A':<40}")
