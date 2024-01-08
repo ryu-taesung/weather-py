@@ -26,7 +26,7 @@ def get_day_of_week(date_string):
 periods = defaultdict(lambda: {"day_of_week": None, 'high_temp': None, 'low_temp': None, 'day_forecast': None, 'night_forecast': None})
 for period in api_data['properties']['periods']:
     forecast = period['detailedForecast']
-    match = re.search(r'(?:(?:high near)|(?:low around))\s+(\d{2,3}).', forecast)
+    match = re.search(r'(?:(?:high near)|(?:low around))\s+(\d{2,3})[\.,]', forecast.lower())
     period_date = period['startTime'].split('T')[0]
     periods[period_date]
     periods[period_date]['day_of_week'] = get_day_of_week(period_date)
