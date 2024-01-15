@@ -13,7 +13,7 @@ def get_day_of_week(date_string):
 try:
     with urllib.request.urlopen('https://api.weather.gov/gridpoints/CTP/71,63/forecast') as req:
         data = req.read()
-        # with open('forecast_overnight.json') as f:
+        # with open('forecast_overnight2.json') as f:
         #     data = f.read()
         api_data = json.loads(data)
         periods = defaultdict(lambda: {"day_of_week": None, 'high_temp': None, 'low_temp': None, 'day_forecast': None, 'night_forecast': None})
@@ -22,7 +22,7 @@ try:
         match = re.search(r'(?:(?:high near)|(?:low around))\s+(-?\d{1,3})[\.,]', forecast.lower())
         period_date = period['startTime'].split('T')[0]
         period_time_start = period['startTime'].split('T')[1]
-        before_dawn = period_time_start.startswith('00')
+        before_dawn = True if int(period_time_start[0:2]) < 6 else False
         if before_dawn:
             current_date = dt.datetime.strptime(period_date, '%Y-%m-%d')
             new_date = current_date - dt.timedelta(days=1)
