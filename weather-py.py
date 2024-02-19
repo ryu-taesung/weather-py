@@ -72,5 +72,6 @@ def display_weather_report(periods: Dict[str, Dict[str, str]]):
 
 if __name__ == '__main__':
     api_data = fetch_weather_data(API_URL)
-    periods = process_weather_data(api_data)
-    display_weather_report(periods)
+    if api_data:
+        periods = process_weather_data(api_data)
+        display_weather_report(periods)
