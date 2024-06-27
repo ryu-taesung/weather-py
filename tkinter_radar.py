@@ -7,99 +7,105 @@ from PIL import Image, ImageTk
 import io
 import time
 
-def get_radar_gif_url(zip_code):
-    # Step 1: Get lat/lon from the zip code
-    zip_lookup_url = f"https://graphical.weather.gov/xml/sample_products/browser_interface/ndfdXMLclient.php?listZipCodeList={zip_code}"
-    with urllib.request.urlopen(zip_lookup_url) as response:
-        xml_content = response.read().decode()
+class WeatherRadarViewer(tk.Tk):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.title("Weather Radar Viewer")
+        self.refresh_delay = 180000 # 3 minutes
+        self.zip_code = None
+        self.radar_url = None
 
-    # Parse the XML to extract lat/lon
-    root = ET.fromstring(xml_content)
-    lat_lon_list = root.find('.//latLonList').text
 
-    # Step 2: Get the grid points using lat/lon
-    grid_api_url = f"https://api.weather.gov/points/{lat_lon_list}"
-    with urllib.request.urlopen(grid_api_url) as response:
-        grid_json = json.loads(response.read().decode())
-        radar_station = grid_json['properties']['radarStation']
+        frame = ttk.Frame(self, padding="10")
+        frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-    # Step 3: Construct the radar URL with a query string to prevent caching
-    timestamp = int(time.time())
-    radar_url = f"https://radar.weather.gov/ridge/standard/{radar_station}_loop.gif?{timestamp}"
+        zip_code_label = ttk.Label(frame, text="Enter ZIP code:")
+        zip_code_label.grid(row=0, column=0, padx=5, pady=5)
 
-    return radar_url
+        self.zip_code_entry = ttk.Entry(frame)
+        self.zip_code_entry.grid(row=0, column=1, padx=5, pady=5)
 
-def fetch_and_display_gif():
-    global frames, frame_index, frame_animation_id
+        fetch_button = ttk.Button(frame, text="Fetch Radar", command=self.update_gif_periodically)
+        fetch_button.grid(row=0, column=2, padx=5, pady=5)
 
-    zip_code = zip_code_entry.get()
-    radar_url = get_radar_gif_url(zip_code)
-    with urllib.request.urlopen(radar_url) as response:
-        image_data = response.read()
+        self.image_label = ttk.Label(frame)
+        self.image_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
 
-    # Use PIL to open the image
-    image = Image.open(io.BytesIO(image_data))
+        self.frames = []
+        self.frame_index = 0
+        self.frame_animation_id = None
+        #self.after(self.refresh_delay, self.update_gif_periodically)
 
-    # If it's an animated GIF, handle the frames
-    frames = []
-    try:
-        while True:
-            frame = ImageTk.PhotoImage(image.copy())
-            frames.append(frame)
-            image.seek(len(frames))  # Seek to the next frame
-    except EOFError:
-        pass
+    def get_radar_gif_url(self, zip_code):
+        # Step 1: Get lat/lon from the zip code
+        zip_lookup_url = f"https://graphical.weather.gov/xml/sample_products/browser_interface/ndfdXMLclient.php?listZipCodeList={zip_code}"
+        with urllib.request.urlopen(zip_lookup_url) as response:
+            xml_content = response.read().decode()
 
-    # Reset the frame index and start animation
-    frame_index = 0
-    animate_gif()
+        # Parse the XML to extract lat/lon
+        root = ET.fromstring(xml_content)
+        lat_lon_list = root.find('.//latLonList').text
 
-def animate_gif():
-    global frames, frame_index, frame_animation_id
+        # Step 2: Get the grid points using lat/lon
+        grid_api_url = f"https://api.weather.gov/points/{lat_lon_list}"
+        with urllib.request.urlopen(grid_api_url) as response:
+            grid_json = json.loads(response.read().decode())
+            radar_station = grid_json['properties']['radarStation']
 
-    if frames:
-        frame = frames[frame_index]
-        image_label.config(image=frame)
-        image_label.image = frame
-        frame_index = (frame_index + 1) % len(frames)
-        frame_animation_id = root.after(200, animate_gif)
+        self.zip_code = zip_code
+        radar_url = f"https://radar.weather.gov/ridge/standard/{radar_station}_loop.gif"
 
-def update_gif_periodically():
-    global frame_animation_id
+        return radar_url
 
-    if frame_animation_id:
-        root.after_cancel(frame_animation_id)
-        frame_animation_id = None
-    
-    fetch_and_display_gif()
-    root.after(180000, update_gif_periodically)  # Schedule the next update in 3 minutes (180,000 milliseconds)
+    def fetch_and_display_gif(self):
+        if self.radar_url is None or self.zip_code != self.zip_code_entry.get():
+            zip_code = self.zip_code_entry.get()
+            if zip_code is None or zip_code == '':
+                return
+            self.radar_url = self.get_radar_gif_url(zip_code)
 
-# Set up the GUI
-root = tk.Tk()
-root.title("Weather Radar Viewer")
+        # Step 3: Construct the radar URL with a query string to prevent caching
+        timestamp = int(time.time())
+        no_cache_radar_url = f"{self.radar_url}?{timestamp}"
+        print(no_cache_radar_url)
 
-frame = ttk.Frame(root, padding="10")
-frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        with urllib.request.urlopen(no_cache_radar_url) as response:
+            image_data = response.read()
 
-zip_code_label = ttk.Label(frame, text="Enter ZIP code:")
-zip_code_label.grid(row=0, column=0, padx=5, pady=5)
+        # Use PIL to open the image
+        image = Image.open(io.BytesIO(image_data))
 
-zip_code_entry = ttk.Entry(frame)
-zip_code_entry.grid(row=0, column=1, padx=5, pady=5)
+        # If it's an animated GIF, handle the frames
+        self.frames = []
+        try:
+            while True:
+                frame = ImageTk.PhotoImage(image.copy())
+                self.frames.append(frame)
+                image.seek(len(self.frames))  # Seek to the next frame
+        except EOFError:
+            pass
 
-fetch_button = ttk.Button(frame, text="Fetch Radar", command=fetch_and_display_gif)
-fetch_button.grid(row=0, column=2, padx=5, pady=5)
+        # Reset the frame index and start animation
+        self.frame_index = 0
+        self.after(200, self.animate_gif)
 
-image_label = ttk.Label(frame)
-image_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
+    def animate_gif(self):
+        if self.frames:
+            frame = self.frames[self.frame_index]
+            self.image_label.config(image=frame)
+            self.image_label.image = frame
+            self.frame_index = (self.frame_index + 1) % len(self.frames)
+            self.frame_animation_id = self.after(200, self.animate_gif)
 
-# Global variables to manage frames and animation
-frames = []
-frame_index = 0
-frame_animation_id = None
+    def update_gif_periodically(self):
+        if self.frame_animation_id:
+            self.after_cancel(self.frame_animation_id)
+            self.frame_animation_id = None
+        
+        self.fetch_and_display_gif()
+        self.after(self.refresh_delay, self.update_gif_periodically)
 
-# Start the periodic update
-root.after(180000, update_gif_periodically)  # Schedule the first update in 3 minutes
-
-root.mainloop()
+if __name__ == "__main__":
+    root = WeatherRadarViewer()
+    root.mainloop()
 
