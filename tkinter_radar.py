@@ -14,8 +14,10 @@ class WeatherRadarViewer(tk.Tk):
         self.refresh_delay = 180000 # 3 minutes
         self.zip_code = None
         self.radar_url = None
+        self.first_render = True
 
-
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
         frame = ttk.Frame(self, padding="10")
         frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
@@ -28,8 +30,14 @@ class WeatherRadarViewer(tk.Tk):
         fetch_button = ttk.Button(frame, text="Fetch Radar", command=self.update_gif_periodically)
         fetch_button.grid(row=0, column=2, padx=5, pady=5)
 
+        #style = ttk.Style(self)
+        #style.theme_use('classic')
         self.image_label = ttk.Label(frame)
-        self.image_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
+        self.image_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky=(tk.N, tk.E, tk.S, tk.W))
+        frame.rowconfigure(1, weight=1)
+        frame.columnconfigure(0, weight=1)
+        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(2, weight=1)
 
         self.frames = []
         self.frame_index = 0
@@ -67,7 +75,6 @@ class WeatherRadarViewer(tk.Tk):
         # Step 3: Construct the radar URL with a query string to prevent caching
         timestamp = int(time.time())
         no_cache_radar_url = f"{self.radar_url}?{timestamp}"
-        print(no_cache_radar_url)
 
         with urllib.request.urlopen(no_cache_radar_url) as response:
             image_data = response.read()
@@ -79,6 +86,11 @@ class WeatherRadarViewer(tk.Tk):
         self.frames = []
         try:
             while True:
+                # placeholder to rescale image to container
+                # if not self.first_render:
+                #     self.update()
+                #     frame = ImageTk.PhotoImage(image.resize((self.image_label.winfo_width(), self.image_label.winfo_height()), Image.Resampling.LANCZOS).copy())
+                # else:
                 frame = ImageTk.PhotoImage(image.copy())
                 self.frames.append(frame)
                 image.seek(len(self.frames))  # Seek to the next frame
@@ -87,6 +99,7 @@ class WeatherRadarViewer(tk.Tk):
 
         # Reset the frame index and start animation
         self.frame_index = 0
+        self.first_render = False
         self.after(200, self.animate_gif)
 
     def animate_gif(self):
