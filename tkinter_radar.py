@@ -25,6 +25,9 @@ class WeatherRadarViewer(tk.Tk):
         zip_code_label.grid(row=0, column=0, padx=5, pady=5)
 
         self.zip_code_entry = ttk.Entry(frame)
+        self.zip_code_entry.focus_set()
+        self.zip_code_entry.bind('<Return>', lambda e: self.update_gif_periodically())
+        self.zip_code_entry.bind('<KP_Enter>', lambda e: self.update_gif_periodically())
         self.zip_code_entry.grid(row=0, column=1, padx=5, pady=5)
 
         fetch_button = ttk.Button(frame, text="Fetch Radar", command=self.update_gif_periodically)
@@ -42,7 +45,16 @@ class WeatherRadarViewer(tk.Tk):
         self.frames = []
         self.frame_index = 0
         self.frame_animation_id = None
-        #self.after(self.refresh_delay, self.update_gif_periodically)
+        self.image_label.bind("<Configure>", lambda event: self.handle_resize())
+        self.resize_await = None
+        self.update_gif_timer = None
+
+    def handle_resize(self):
+        #print("resize event")
+        if self.resize_await:
+            self.after_cancel(self.resize_await)
+            self.resize_await = None
+        self.resize_await = self.after(200, self.update_gif_periodically)
 
     def get_radar_gif_url(self, zip_code):
         # Step 1: Get lat/lon from the zip code
@@ -65,7 +77,7 @@ class WeatherRadarViewer(tk.Tk):
 
         return radar_url
 
-    def fetch_and_display_gif(self):
+    def fetch_and_display_gif(self, *args, **kwargs):
         if self.radar_url is None or self.zip_code != self.zip_code_entry.get():
             zip_code = self.zip_code_entry.get()
             if zip_code is None or zip_code == '':
@@ -75,6 +87,7 @@ class WeatherRadarViewer(tk.Tk):
         # Step 3: Construct the radar URL with a query string to prevent caching
         timestamp = int(time.time())
         no_cache_radar_url = f"{self.radar_url}?{timestamp}"
+        print(f"grabbed new image: {no_cache_radar_url}")
 
         with urllib.request.urlopen(no_cache_radar_url) as response:
             image_data = response.read()
@@ -86,11 +99,6 @@ class WeatherRadarViewer(tk.Tk):
         self.frames = []
         try:
             while True:
-                # placeholder to rescale image to container
-                # if not self.first_render:
-                #     self.update()
-                #     frame = ImageTk.PhotoImage(image.resize((self.image_label.winfo_width(), self.image_label.winfo_height()), Image.Resampling.LANCZOS).copy())
-                # else:
                 frame = ImageTk.PhotoImage(image.copy())
                 self.frames.append(frame)
                 image.seek(len(self.frames))  # Seek to the next frame
@@ -99,8 +107,20 @@ class WeatherRadarViewer(tk.Tk):
 
         # Reset the frame index and start animation
         self.frame_index = 0
+        self.scale_image()
         self.first_render = False
         self.after(200, self.animate_gif)
+
+    def scale_image(self):
+        if not self.first_render:
+            self.update()
+            # print(self.image_label.winfo_width(),self.image_label.winfo_height())
+            new_width = self.image_label.winfo_width() - 4 # subtract the mystery 4 pixels so it doesn't keep expanding
+            new_height = self.image_label.winfo_height() - 4
+            for i in range(len(self.frames)):
+                img = ImageTk.getimage(self.frames[i])
+                resized_image = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                self.frames[i] = ImageTk.PhotoImage(image=resized_image)
 
     def animate_gif(self):
         if self.frames:
@@ -114,9 +134,11 @@ class WeatherRadarViewer(tk.Tk):
         if self.frame_animation_id:
             self.after_cancel(self.frame_animation_id)
             self.frame_animation_id = None
-        
+        if self.update_gif_timer:
+            self.after_cancel(self.update_gif_timer)
+            self.update_gif_timer = None
         self.fetch_and_display_gif()
-        self.after(self.refresh_delay, self.update_gif_periodically)
+        self.update_gif_timer = self.after(self.refresh_delay, self.update_gif_periodically)
 
 if __name__ == "__main__":
     root = WeatherRadarViewer()
