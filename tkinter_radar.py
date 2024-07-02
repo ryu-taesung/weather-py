@@ -35,7 +35,7 @@ class WeatherRadarViewer(tk.Tk):
 
         #style = ttk.Style(self)
         #style.theme_use('classic')
-        self.image_label = ttk.Label(frame)
+        self.image_label = ttk.Label(frame, borderwidth=0, border=0)
         self.image_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky=(tk.N, tk.E, tk.S, tk.W))
         frame.rowconfigure(1, weight=1)
         frame.columnconfigure(0, weight=1)
@@ -54,7 +54,7 @@ class WeatherRadarViewer(tk.Tk):
         if self.resize_await:
             self.after_cancel(self.resize_await)
             self.resize_await = None
-        self.resize_await = self.after(200, self.update_gif_periodically)
+        self.resize_await = self.after(200, self.scale_image)
 
     def get_radar_gif_url(self, zip_code):
         # Step 1: Get lat/lon from the zip code
@@ -114,9 +114,8 @@ class WeatherRadarViewer(tk.Tk):
     def scale_image(self):
         if not self.first_render:
             self.update()
-            # print(self.image_label.winfo_width(),self.image_label.winfo_height())
-            new_width = self.image_label.winfo_width() - 4 # subtract the mystery 4 pixels so it doesn't keep expanding
-            new_height = self.image_label.winfo_height() - 4
+            new_width = self.image_label.winfo_width()
+            new_height = self.image_label.winfo_height()
             for i in range(len(self.frames)):
                 img = ImageTk.getimage(self.frames[i])
                 resized_image = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
