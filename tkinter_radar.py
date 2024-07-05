@@ -99,18 +99,24 @@ class WeatherRadarViewer(tk.Tk):
                 return
             if zip_code:
                 self.radar_url = self.get_radar_gif_url(zip_code)
-            #    self.selected_region.set('')
 
         # Step 3: Construct the radar URL with a query string to prevent caching
         timestamp = int(time.time())
         no_cache_radar_url = f"{self.radar_url}?{timestamp}"
         print(f"grabbed new image: {no_cache_radar_url}")
 
-        with urllib.request.urlopen(no_cache_radar_url) as response:
-            image_data = response.read()
+        try:
+            with urllib.request.urlopen(no_cache_radar_url) as response:
+                image_data = response.read()
+        except:
+            print("Error getting image")
 
-        # Use PIL to open the image
-        image = Image.open(io.BytesIO(image_data))
+        image = None
+        try:
+            # Use PIL to open the image
+            image = Image.open(io.BytesIO(image_data))
+        except:
+            print("Corrupt image received")
 
         # If it's an animated GIF, handle the frames
         self.frames = []
@@ -166,7 +172,7 @@ class WeatherRadarViewer(tk.Tk):
             'Northeast',
             'Pacific Southwest',
             'Southern Rockies',
-            'Souther PLains',
+            'Souther Plains',
             'Southern Mississippi Valley',
             'Southeast',
             'National',
