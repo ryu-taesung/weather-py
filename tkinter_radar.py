@@ -15,6 +15,7 @@ class WeatherRadarViewer(tk.Tk):
         self.zip_code = None
         self.radar_url = None
         self.first_render = True
+        self.populate_radar_urls()
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
@@ -33,14 +34,24 @@ class WeatherRadarViewer(tk.Tk):
         fetch_button = ttk.Button(frame, text="Fetch Radar", command=self.update_gif_periodically)
         fetch_button.grid(row=0, column=2, padx=5, pady=5)
 
+        region_label = ttk.Label(frame, text="Or Select Region:")
+        region_label.grid(row=0, column=3, padx=5, pady=5)
+        self.selected_region = tk.StringVar(self)
+        self.selected_region.set('')
+        self.selected_region.trace('w', self.updated_region)
+        region_dropdown = tk.OptionMenu(frame, self.selected_region, *self.radar_regions)
+        region_dropdown.grid(row=0, column=4, padx=5, pady=5)
+
         #style = ttk.Style(self)
         #style.theme_use('classic')
         self.image_label = ttk.Label(frame, borderwidth=0, border=0)
-        self.image_label.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky=(tk.N, tk.E, tk.S, tk.W))
+        self.image_label.grid(row=1, column=0, columnspan=5, padx=5, pady=5, sticky=(tk.N, tk.E, tk.S, tk.W))
         frame.rowconfigure(1, weight=1)
         frame.columnconfigure(0, weight=1)
         frame.columnconfigure(1, weight=1)
         frame.columnconfigure(2, weight=1)
+        frame.columnconfigure(3, weight=1)
+        frame.columnconfigure(4, weight=1)
 
         self.frames = []
         self.frame_index = 0
@@ -48,6 +59,10 @@ class WeatherRadarViewer(tk.Tk):
         self.image_label.bind("<Configure>", lambda event: self.handle_resize())
         self.resize_await = None
         self.update_gif_timer = None
+
+    def updated_region(self, *args, **kwargs):
+        self.radar_url = self.radar_urls[self.radar_regions.index(self.selected_region.get())]
+        self.update_gif_periodically()
 
     def handle_resize(self):
         #print("resize event")
@@ -78,11 +93,13 @@ class WeatherRadarViewer(tk.Tk):
         return radar_url
 
     def fetch_and_display_gif(self, *args, **kwargs):
-        if self.radar_url is None or self.zip_code != self.zip_code_entry.get():
+        if self.radar_url is None or self.zip_code != self.zip_code_entry.get() or self.selected_region.get() == '':
             zip_code = self.zip_code_entry.get()
-            if zip_code is None or zip_code == '':
+            if zip_code is None or zip_code == '' and self.selected_region.get() == '' :
                 return
-            self.radar_url = self.get_radar_gif_url(zip_code)
+            if zip_code:
+                self.radar_url = self.get_radar_gif_url(zip_code)
+            #    self.selected_region.set('')
 
         # Step 3: Construct the radar URL with a query string to prevent caching
         timestamp = int(time.time())
@@ -138,6 +155,45 @@ class WeatherRadarViewer(tk.Tk):
             self.update_gif_timer = None
         self.fetch_and_display_gif()
         self.update_gif_timer = self.after(self.refresh_delay, self.update_gif_periodically)
+
+    def populate_radar_urls(self):
+        self.radar_regions = [
+            '',
+            'Pacific Northwest',
+            'North Rockies',
+            'Upper Mississippi Valley',
+            'Central Great Lakes',
+            'Northeast',
+            'Pacific Southwest',
+            'Southern Rockies',
+            'Souther PLains',
+            'Southern Mississippi Valley',
+            'Southeast',
+            'National',
+            'Alaska',
+            'Hawaii',
+            'Guam',
+            'Puerto Rico',
+        ]
+
+        self.radar_urls = [
+            '',
+            'https://radar.weather.gov/ridge/standard/PACNORTHWEST_loop.gif',
+            'https://radar.weather.gov/ridge/standard/NORTHROCKIES_loop.gif',
+            'https://radar.weather.gov/ridge/standard/UPPERMISSVLY_loop.gif',
+            'https://radar.weather.gov/ridge/standard/CENTGRLAKES_loop.gif',
+            'https://radar.weather.gov/ridge/standard/NORTHEAST_loop.gif',
+            'https://radar.weather.gov/ridge/standard/PACSOUTHWEST_loop.gif',
+            'https://radar.weather.gov/ridge/standard/SOUTHROCKIES_loop.gif',
+            'https://radar.weather.gov/ridge/standard/SOUTHPLAINS_loop.gif',
+            'https://radar.weather.gov/ridge/standard/SOUTHMISSVLY_loop.gif',
+            'https://radar.weather.gov/ridge/standard/SOUTHEAST_loop.gif',
+            'https://radar.weather.gov/ridge/standard/CONUS_loop.gif',
+            'https://radar.weather.gov/ridge/standard/ALASKA_loop.gif',
+            'https://radar.weather.gov/ridge/standard/HAWAII_loop.gif',
+            'https://radar.weather.gov/ridge/standard/GUAM_loop.gif',
+            'https://radar.weather.gov/ridge/standard/TJUA_loop.gif',
+        ]
 
 if __name__ == "__main__":
     root = WeatherRadarViewer()
