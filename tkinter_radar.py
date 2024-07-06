@@ -6,6 +6,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import io
 import time
+import json
 
 class WeatherRadarViewer(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -27,11 +28,11 @@ class WeatherRadarViewer(tk.Tk):
 
         self.zip_code_entry = ttk.Entry(frame)
         self.zip_code_entry.focus_set()
-        self.zip_code_entry.bind('<Return>', lambda e: self.update_gif_periodically())
-        self.zip_code_entry.bind('<KP_Enter>', lambda e: self.update_gif_periodically())
+        self.zip_code_entry.bind('<Return>', lambda e: self.update_gif_periodically(force=True))
+        self.zip_code_entry.bind('<KP_Enter>', lambda e: self.update_gif_periodically(force=True))
         self.zip_code_entry.grid(row=0, column=1, padx=5, pady=5)
 
-        fetch_button = ttk.Button(frame, text="Fetch Radar", command=self.update_gif_periodically)
+        fetch_button = ttk.Button(frame, text="Fetch Radar", command=lambda: self.update_gif_periodically(force=True))
         fetch_button.grid(row=0, column=2, padx=5, pady=5)
 
         region_label = ttk.Label(frame, text="Or Select Region:")
@@ -59,10 +60,39 @@ class WeatherRadarViewer(tk.Tk):
         self.image_label.bind("<Configure>", lambda event: self.handle_resize())
         self.resize_await = None
         self.update_gif_timer = None
+        self.settings_loaded = False
+        self.load_settings()
 
     def updated_region(self, *args, **kwargs):
-        self.radar_url = self.radar_urls[self.radar_regions.index(self.selected_region.get())]
+        if self.selected_region.get() != '':
+            self.radar_url = self.radar_urls[self.radar_regions.index(self.selected_region.get())]
+        else:
+            self.radar_url = None 
+        if self.settings_loaded:
+            self.update_gif_periodically()
+
+    def load_settings(self):
+        try:
+            with open('settings.json', mode='r', encoding='utf-8') as file:
+                settings = json.loads(file.read())
+                self.selected_region.set(settings['regional_selection'])
+                self.zip_code = settings['zip_code'] or ''
+                self.zip_code_entry.delete(0,tk.END)
+                self.zip_code_entry.insert(0,self.zip_code)
+                self.radar_url = settings['radar_url']
+        except:
+            print("error loading settings.json")
+        self.settings_loaded = True
         self.update_gif_periodically()
+
+    def save_settings(self):
+        with open('settings.json', mode='w', encoding='utf-8') as file:
+            settings = {
+                'zip_code': self.zip_code,
+                'radar_url': self.radar_url,
+                'regional_selection': self.selected_region.get(),
+            }
+            file.write(json.dumps(settings))
 
     def handle_resize(self):
         #print("resize event")
@@ -72,6 +102,11 @@ class WeatherRadarViewer(tk.Tk):
         self.resize_await = self.after(200, self.scale_image)
 
     def get_radar_gif_url(self, zip_code):
+        print('zip lookup')
+        if zip_code is None or zip_code == '':
+            print('no zip')
+            return ''
+
         # Step 1: Get lat/lon from the zip code
         zip_lookup_url = f"https://graphical.weather.gov/xml/sample_products/browser_interface/ndfdXMLclient.php?listZipCodeList={zip_code}"
         with urllib.request.urlopen(zip_lookup_url) as response:
@@ -96,9 +131,11 @@ class WeatherRadarViewer(tk.Tk):
         if self.radar_url is None or self.zip_code != self.zip_code_entry.get() or self.selected_region.get() == '':
             zip_code = self.zip_code_entry.get()
             if zip_code is None or zip_code == '' and self.selected_region.get() == '' :
+                print('early return')
                 return
-            if zip_code:
+            if zip_code is not None and self.radar_url is None or self.zip_code != self.zip_code_entry.get():
                 self.radar_url = self.get_radar_gif_url(zip_code)
+                self.zip_code = zip_code
 
         # Step 3: Construct the radar URL with a query string to prevent caching
         timestamp = int(time.time())
@@ -132,6 +169,7 @@ class WeatherRadarViewer(tk.Tk):
         self.frame_index = 0
         self.scale_image()
         self.first_render = False
+        self.save_settings()
         self.after(200, self.animate_gif)
 
     def scale_image(self):
@@ -152,14 +190,21 @@ class WeatherRadarViewer(tk.Tk):
             self.frame_index = (self.frame_index + 1) % len(self.frames)
             self.frame_animation_id = self.after(200, self.animate_gif)
 
-    def update_gif_periodically(self):
+    def update_gif_periodically(self, *args, **kwargs):
+        if kwargs.get('force'):
+            self.radar_url = None
+            self.selected_region.set('')
+            self.zip_code = self.zip_code_entry.get() 
         if self.frame_animation_id:
             self.after_cancel(self.frame_animation_id)
             self.frame_animation_id = None
         if self.update_gif_timer:
             self.after_cancel(self.update_gif_timer)
             self.update_gif_timer = None
+        #try:
         self.fetch_and_display_gif()
+        #except:
+        #    pass
         self.update_gif_timer = self.after(self.refresh_delay, self.update_gif_periodically)
 
     def populate_radar_urls(self):
