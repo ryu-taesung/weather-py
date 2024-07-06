@@ -68,7 +68,7 @@ class WeatherRadarViewer(tk.Tk):
             self.radar_url = self.radar_urls[self.radar_regions.index(self.selected_region.get())]
         else:
             self.radar_url = None 
-        if self.settings_loaded:
+        if self.settings_loaded and self.selected_region.get() != '':
             self.update_gif_periodically()
 
     def load_settings(self):
@@ -128,12 +128,13 @@ class WeatherRadarViewer(tk.Tk):
         return radar_url
 
     def fetch_and_display_gif(self, *args, **kwargs):
+        force_lookup = kwargs.get('force')
         if self.radar_url is None or self.zip_code != self.zip_code_entry.get() or self.selected_region.get() == '':
             zip_code = self.zip_code_entry.get()
             if zip_code is None or zip_code == '' and self.selected_region.get() == '' :
                 print('early return')
                 return
-            if zip_code is not None and self.radar_url is None or self.zip_code != self.zip_code_entry.get():
+            if zip_code is not None and force_lookup:
                 self.radar_url = self.get_radar_gif_url(zip_code)
                 self.zip_code = zip_code
 
@@ -191,9 +192,12 @@ class WeatherRadarViewer(tk.Tk):
             self.frame_animation_id = self.after(200, self.animate_gif)
 
     def update_gif_periodically(self, *args, **kwargs):
+        force_lookup = False
         if kwargs.get('force'):
+            force_lookup = True
             self.radar_url = None
-            self.selected_region.set('')
+            if self.selected_region.get() != '':
+                self.selected_region.set('')
             self.zip_code = self.zip_code_entry.get() 
         if self.frame_animation_id:
             self.after_cancel(self.frame_animation_id)
@@ -202,7 +206,7 @@ class WeatherRadarViewer(tk.Tk):
             self.after_cancel(self.update_gif_timer)
             self.update_gif_timer = None
         #try:
-        self.fetch_and_display_gif()
+        self.fetch_and_display_gif(force=force_lookup)
         #except:
         #    pass
         self.update_gif_timer = self.after(self.refresh_delay, self.update_gif_periodically)
@@ -217,7 +221,7 @@ class WeatherRadarViewer(tk.Tk):
             'Northeast',
             'Pacific Southwest',
             'Southern Rockies',
-            'Souther Plains',
+            'Southern Plains',
             'Southern Mississippi Valley',
             'Southeast',
             'National',
