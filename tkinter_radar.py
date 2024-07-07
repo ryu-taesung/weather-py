@@ -26,7 +26,7 @@ class WeatherRadarViewer(tk.Tk):
         zip_code_label = ttk.Label(frame, text="Enter ZIP code:")
         zip_code_label.grid(row=0, column=0, padx=5, pady=5)
 
-        self.zip_code_entry = ttk.Entry(frame)
+        self.zip_code_entry = ttk.Entry(frame, width=5)
         self.zip_code_entry.focus_set()
         self.zip_code_entry.bind('<Return>', lambda e: self.update_gif_periodically(force=True))
         self.zip_code_entry.bind('<KP_Enter>', lambda e: self.update_gif_periodically(force=True))
@@ -58,6 +58,7 @@ class WeatherRadarViewer(tk.Tk):
         self.frame_index = 0
         self.frame_animation_id = None
         self.image_label.bind("<Configure>", lambda event: self.handle_resize())
+        self.image_label.bind('<Double-Button-1>', self.restore_image_dimensions)
         self.resize_await = None
         self.update_gif_timer = None
         self.settings_loaded = False
@@ -70,6 +71,11 @@ class WeatherRadarViewer(tk.Tk):
             self.radar_url = None 
         if self.settings_loaded and self.selected_region.get() != '':
             self.update_gif_periodically()
+
+    def restore_image_dimensions(self, *args, **kwargs):
+        self.first_render = True
+        self.update_gif_periodically()
+        self.geometry("")
 
     def load_settings(self):
         try:
@@ -174,10 +180,18 @@ class WeatherRadarViewer(tk.Tk):
         self.after(200, self.animate_gif)
 
     def scale_image(self):
+        if self.frames is None or len(self.frames) == 0:
+            print('no frames')
+            return
         if not self.first_render:
             self.update()
+            width, height = ImageTk.getimage(self.frames[0]).size
             new_width = self.image_label.winfo_width()
             new_height = self.image_label.winfo_height()
+            if new_height == height and new_width == width:
+                print('no scaling needed')
+                return
+            print('scaling image')
             for i in range(len(self.frames)):
                 img = ImageTk.getimage(self.frames[i])
                 resized_image = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
