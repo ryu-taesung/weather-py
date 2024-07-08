@@ -7,6 +7,10 @@ from PIL import Image, ImageTk
 import io
 import time
 import json
+import logging
+import argparse
+
+logger = logging.getLogger(__name__)
 
 class WeatherRadarViewer(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -87,7 +91,7 @@ class WeatherRadarViewer(tk.Tk):
                 self.zip_code_entry.insert(0,self.zip_code)
                 self.radar_url = settings['radar_url']
         except:
-            print("error loading settings.json")
+            logging.debug("error loading settings.json")
         self.settings_loaded = True
         self.update_gif_periodically()
 
@@ -101,16 +105,16 @@ class WeatherRadarViewer(tk.Tk):
             file.write(json.dumps(settings))
 
     def handle_resize(self):
-        #print("resize event")
+        logging.debug("resize event")
         if self.resize_await:
             self.after_cancel(self.resize_await)
             self.resize_await = None
         self.resize_await = self.after(200, self.scale_image)
 
     def get_radar_gif_url(self, zip_code):
-        print('zip lookup')
+        logging.debug('zip lookup')
         if zip_code is None or zip_code == '':
-            print('no zip')
+            logging.debug('no zip')
             return ''
 
         # Step 1: Get lat/lon from the zip code
@@ -138,7 +142,7 @@ class WeatherRadarViewer(tk.Tk):
         if self.radar_url is None or self.zip_code != self.zip_code_entry.get() or self.selected_region.get() == '':
             zip_code = self.zip_code_entry.get()
             if zip_code is None or zip_code == '' and self.selected_region.get() == '' :
-                print('early return')
+                logging.debug('early return')
                 return
             if zip_code is not None and force_lookup:
                 self.radar_url = self.get_radar_gif_url(zip_code)
@@ -147,20 +151,20 @@ class WeatherRadarViewer(tk.Tk):
         # Step 3: Construct the radar URL with a query string to prevent caching
         timestamp = int(time.time())
         no_cache_radar_url = f"{self.radar_url}?{timestamp}"
-        print(f"grabbed new image: {no_cache_radar_url}")
+        logging.info(f"grabbed new image: {no_cache_radar_url}")
 
         try:
             with urllib.request.urlopen(no_cache_radar_url) as response:
                 image_data = response.read()
         except:
-            print("Error getting image")
+            logging.debug("Error getting image")
 
         image = None
         try:
             # Use PIL to open the image
             image = Image.open(io.BytesIO(image_data))
         except:
-            print("Corrupt image received")
+            logging.debug("Corrupt image received")
 
         # If it's an animated GIF, handle the frames
         self.frames = []
@@ -181,7 +185,7 @@ class WeatherRadarViewer(tk.Tk):
 
     def scale_image(self):
         if self.frames is None or len(self.frames) == 0:
-            print('no frames')
+            logging.debug('no frames')
             return
         if not self.first_render:
             self.update()
@@ -189,9 +193,9 @@ class WeatherRadarViewer(tk.Tk):
             new_width = self.image_label.winfo_width()
             new_height = self.image_label.winfo_height()
             if new_height == height and new_width == width:
-                print('no scaling needed')
+                logging.debug('no scaling needed')
                 return
-            print('scaling image')
+            logging.debug('scaling image')
             for i in range(len(self.frames)):
                 img = ImageTk.getimage(self.frames[i])
                 resized_image = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
@@ -265,6 +269,22 @@ class WeatherRadarViewer(tk.Tk):
         ]
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+            '-d', '--debug',
+            help="Enable debug logging",
+            action="store_const", dest='loglevel', const=logging.DEBUG,
+            default=logging.WARNING,
+    )
+    parser.add_argument(
+            '-v', '--verbose',
+            help="Enable verbose logging",
+            action="store_const", dest='loglevel', const=logging.INFO,
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=args.loglevel)
+
     root = WeatherRadarViewer()
     root.mainloop()
 
